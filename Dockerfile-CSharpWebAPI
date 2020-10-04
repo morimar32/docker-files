@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build
+COPY . /code
+WORKDIR /code
+
+RUN dotnet restore
+RUN dotnet publish -r linux-musl-x64 -c release -o app  /p:TrimUnusedDependencies=true /p:Optimize=true /p:PublishTrimmed=true /p:PublishSingleFile=true /p:Mode=CoreRT-Moderate
+RUN upx -9 -q app/buildtest
+
+FROM mcr.microsoft.com/dotnet/core/runtime-deps:3.1-alpine AS prod
+ENV ASPNETCORE_URLS=http://*:5000
+EXPOSE 5000
+COPY --from=build /code/app /app
+RUN addgroup app_group; adduser -D -g app_group appuser
+USER appuser
+ENTRYPOINT ["/app/buildtest"]
+
+
